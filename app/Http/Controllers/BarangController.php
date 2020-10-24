@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 use App\Models\Barang_m;
+use App\Models\Satuan_barang_m;
+use Illuminate\Support\Facades\Validator;
 use GrahamCampbell\ResultType\Success;
 use Illuminate\Http\Request;
 
@@ -28,13 +30,29 @@ class BarangController extends Controller
 
     public function edit($id){
         $model = Barang_m::findOrFail($id);
+        $model->satuan = Satuan_barang_m::where('id_satuan', $id)->get();
         return view('barang.edit', compact('model'));
     }
 
     public function update(Request $request, $id){
-        $request->validate(self::validation());
+        $rules = self::validation($request->all());
+        $messages = self::validationMessage($request->all());
+        $validator = Validator::make($request->all(), $rules, $messages);
+        if($validator->fails()){
+            return response()->json ([
+                'message'  => 'Terjadi kesalahan input',
+                'errors' => $validator->messages()
+            ], 400);
+        }
         $model = Barang_m::findOrFail($id);
         if($model->update($request->all())){
+            Satuan_barang_m::where('id_satuan', $id)->delete();
+            if($request->post('satuan')){
+                foreach($request->post('satuan') as $key => $satuan){
+                    $satuan['id_satuan'] = $model->id;
+                    Satuan_barang_m::create($satuan);
+                }
+            }
             return [
                 'success' => true,
                 'message' => 'Data Berhasil Di Perbarui'
@@ -48,8 +66,22 @@ class BarangController extends Controller
     }
 
     public function store(Request $request){
-        $request->validate(self::validation());
-        if(Barang_m::create($request->all())){
+        $rules = self::validation($request->all());
+        $messages = self::validationMessage($request->all());
+        $validator = Validator::make($request->all(), $rules, $messages);
+        if ($validator->fails()) {
+            return response()->json([
+                'message'  => 'Terjadi kesalahan input',
+                'errors' => $validator->messages()
+            ], 400);
+        }    
+        if($barang = Barang_m::create($request->all())){
+            if ($request->post('satuan')) {
+                foreach ($request->post('satuan') as $satuan) {
+                    $satuan['id_satuan'] = $barang->id;
+                    Satuan_barang_m::create($satuan);
+                } 
+            }
             return [
                 'success' => true,
                 'message' => 'Data Berhasil Di Tambahkan'
@@ -84,10 +116,34 @@ class BarangController extends Controller
         }
     }
 
-    public function validation(){
-        return [
+    public function validation($data){
+        $rules = [
             'nama_barang' => 'required',
-            'satuan' => 'required'
+            'satuan_barang' => 'required'
         ];
+        if(isset($data['satuan'])){
+            foreach($data['satuan'] as $key => $satuan){
+                $rules['satuan.'.$key.'.satuan'] = 'required'; 
+                $rules['satuan.'.$key.'.x'] = 'required|numeric';
+                $rules['satuan.'.$key.'.y'] = 'required|numeric';               
+            }
+        }
+        return $rules;
     }
+
+    public function validationMessage($data) {        
+        $messages = [];
+        $countSatuan = 1;
+        if (isset($data['satuan'])) {
+            foreach ($data['satuan'] as $key => $satuan) {           
+               $messages['satuan.'.$key.'.satuan.required'] = 'Satuan ke-'.$countSatuan.' harus diisi.';
+               $messages['satuan.'.$key.'.x.required'] = 'X ke-'.$countSatuan.' harus diisi.';
+               $messages['satuan.'.$key.'.y.required'] = 'Y ke-'.$countSatuan.' harus diisi.';
+               $messages['satuan.'.$key.'.x.numeric'] = 'X ke-'.$countSatuan.' harus angka.';
+               $messages['satuan.'.$key.'.y.numeric'] = 'Y ke-'.$countSatuan.' harus angka.';
+               $countSatuan++;
+            }   
+            }         
+        return $messages;
+    }    
 }

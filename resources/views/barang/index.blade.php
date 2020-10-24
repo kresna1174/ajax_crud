@@ -151,6 +151,22 @@
                 validation += '</div>';
                 return validation;
         }
+
+    function add(){
+        var html_row;
+        var key = new Date().getTime();
+        html_row = '<tr id="satuan-'+key+'">'
+            html_row += '<td><input type="text" name="satuan['+key+'][satuan]" class="form-control form-control-sm" ></td>';
+            html_row += '<td><input type="text" name="satuan['+key+'][x]" class="form-control form-control-sm text-center" ></td>';
+            html_row += '<td><input type="text" name="satuan['+key+'][y]" class="form-control form-control-sm text-center" ></td>';
+            html_row += '<td width="100" class="text-center"><button type="button" class="btn btn-danger btn-sm" onclick="deleteSatuans('+key+')">Delete</button></td>';
+
+            $('#table tbody').append(html_row);
+    }
+    
+    function deleteSatuans(key){
+        $('#table tbody #satuan-'+key).remove();
+    }
     </script>
 </body>
 </html>
